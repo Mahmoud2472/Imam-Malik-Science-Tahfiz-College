@@ -1,5 +1,7 @@
 {
   "name": "Imam Malik College Portal",
-  "description": "A comprehensive school management system for Imam Malik Science & Tahfiz College featuring admissions, fee payment integration, student portal, and AI-powered administrative tools.",
-  "requestFramePermissions": []
+  "description": "Secure school management system for Imam Malik College with QR-enabled reporting and Google Drive sync.",
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
