@@ -9,6 +9,7 @@ import StudentPortal from './pages/StudentPortal';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Contact from './pages/Contact';
+import Gallery from './pages/Gallery';
 
 const App: React.FC = () => {
   return (
@@ -23,6 +24,7 @@ const App: React.FC = () => {
             <Route path="/portal" element={<StudentPortal />} />
             <Route path="/staff" element={<TeacherDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/gallery" element={<Gallery />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -12,57 +12,61 @@ const Navbar: React.FC = () => {
     { name: 'Admissions', path: '/admissions' },
     { name: 'School Fees', path: '/fees' },
     { name: 'Student Portal', path: '/portal' },
+    { name: 'Gallery', path: '/gallery' },
     { name: 'Contact', path: '/contact' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="bg-blue-900 text-white shadow-lg sticky top-0 z-50">
+    <nav className="bg-blue-900 text-white shadow-xl sticky top-0 z-50 ring-1 ring-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-white rounded-full p-0.5 overflow-hidden flex items-center justify-center">
+            <Link to="/" className="flex items-center space-x-4 group">
+              <div className="h-12 w-12 bg-white rounded-xl p-0.5 overflow-hidden flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
                  <img 
-                    src="/images/logo.jpg" 
-                    alt="IMST" 
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/1e3a8a/ffffff?text=IMST';
-                    }}
+                    src="https://api.dicebear.com/7.x/initials/svg?seed=IMST&backgroundColor=1e3a8a&fontFamily=Inter&fontWeight=700" 
+                    alt="IMST Logo" 
+                    className="h-full w-full object-cover rounded-lg"
                  />
               </div>
-              <span className="font-bold text-lg sm:text-xl tracking-tight hidden sm:block">
-                {SCHOOL_NAME}
-              </span>
-              <span className="font-bold text-lg sm:text-xl tracking-tight sm:hidden">
-                IMST College
-              </span>
+              <div className="flex flex-col">
+                <span className="font-black text-xl tracking-tight hidden sm:block">
+                  IMAM MALIK
+                </span>
+                <span className="text-[10px] font-bold text-yellow-400 tracking-[0.2em] hidden sm:block">
+                  SCIENCE & TAHFIZ
+                </span>
+                <span className="font-black text-xl sm:hidden">
+                  IMST COLLEGE
+                </span>
+              </div>
             </Link>
           </div>
           
           <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
+            <div className="ml-10 flex items-center space-x-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.path}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                     isActive(link.path)
-                      ? 'bg-blue-800 text-yellow-400'
-                      : 'hover:bg-blue-800 hover:text-white'
+                      ? 'bg-yellow-400 text-blue-900 shadow-lg'
+                      : 'text-blue-100 hover:bg-blue-800 hover:text-white'
                   }`}
                 >
                   {link.name}
                 </Link>
               ))}
-              <div className="border-l border-blue-700 pl-4 flex space-x-2">
-                 <Link to="/staff" className="text-blue-200 hover:text-white" title="Staff Login">
-                    <BookOpen size={18} />
+              <div className="h-6 w-px bg-blue-700 mx-4"></div>
+              <div className="flex space-x-3">
+                 <Link to="/staff" className="p-2 bg-blue-800 text-blue-200 hover:text-white rounded-lg transition-colors" title="Staff Login">
+                    <BookOpen size={20} />
                  </Link>
-                 <Link to="/admin" className="text-blue-200 hover:text-white" title="Admin Login">
-                    <Lock size={18} />
+                 <Link to="/admin" className="p-2 bg-blue-800 text-blue-200 hover:text-white rounded-lg transition-colors" title="Admin Login">
+                    <Lock size={20} />
                  </Link>
               </div>
             </div>
@@ -71,7 +75,7 @@ const Navbar: React.FC = () => {
           <div className="-mr-2 flex md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-blue-200 hover:text-white hover:bg-blue-800 focus:outline-none"
+              className="inline-flex items-center justify-center p-3 rounded-xl text-blue-200 hover:text-white hover:bg-blue-800 focus:outline-none transition-colors"
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -79,37 +83,38 @@ const Navbar: React.FC = () => {
         </div>
       </div>
 
+      {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-blue-800">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+        <div className="md:hidden bg-blue-950 border-t border-blue-800 animate-fadeIn">
+          <div className="px-4 pt-4 pb-6 space-y-2">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
                 onClick={() => setIsOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
+                className={`block px-4 py-3 rounded-xl text-base font-bold transition-all ${
                   isActive(link.path)
-                    ? 'bg-blue-900 text-yellow-400'
-                    : 'text-white hover:bg-blue-700'
+                    ? 'bg-yellow-400 text-blue-900'
+                    : 'text-white hover:bg-blue-900'
                 }`}
               >
                 {link.name}
               </Link>
             ))}
-            <div className="border-t border-blue-700 mt-2 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-4">
               <Link
                   to="/staff"
                   onClick={() => setIsOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white"
+                  className="flex items-center justify-center py-3 rounded-xl text-sm font-bold bg-blue-900 text-blue-200 border border-blue-800"
                 >
-                  Staff Login
+                  <BookOpen size={18} className="mr-2" /> Staff
               </Link>
               <Link
                   to="/admin"
                   onClick={() => setIsOpen(false)}
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white"
+                  className="flex items-center justify-center py-3 rounded-xl text-sm font-bold bg-blue-900 text-blue-200 border border-blue-800"
                 >
-                  Admin Login
+                  <Lock size={18} className="mr-2" /> Admin
               </Link>
             </div>
           </div>

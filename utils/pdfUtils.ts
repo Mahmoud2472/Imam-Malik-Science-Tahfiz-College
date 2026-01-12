@@ -1,9 +1,17 @@
 import { jsPDF } from "jspdf";
 import { SCHOOL_NAME, SCHOOL_ADDRESS, SCHOOL_PHONE, SCHOOL_EMAIL } from "../constants";
 
+/**
+ * Imam Malik Science & Tahfiz College - PDF Branding Utility
+ * 
+ * To ensure the logo from the Google Photos link (https://photos.app.goo.gl/Codyzks3AD5iZgqw9) 
+ * displays in all PDFs, we use a high-resolution crest placeholder. 
+ * If you have a direct URL (ending in .png or .jpg), replace OFFICIAL_LOGO_URL below.
+ */
+const OFFICIAL_LOGO_URL = "https://api.dicebear.com/7.x/initials/svg?seed=IMST&backgroundColor=1e3a8a&fontFamily=Inter&fontWeight=700&fontSize=40";
+
 // Helper to fetch QR code image as base64 from a secure generator
 const generateQrDataUrl = (text: string): string => {
-    // Using a reliable public QR API for embedding in PDF
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(text)}`;
 };
 
@@ -18,70 +26,84 @@ const getBase64ImageFromUrl = async (url: string): Promise<string> => {
     });
 };
 
-export const loadLogo = (): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.src = '/images/logo.jpg';
-        img.onload = () => resolve(img);
-        img.onerror = (e) => {
-            // Fallback for demo if logo doesn't exist in public/images
-            img.src = 'https://placehold.co/100x100/1e3a8a/ffffff?text=IMST';
-            img.onload = () => resolve(img);
-        };
-    });
+/**
+ * Loads the official school logo. 
+ * Priority: 1. Local /images/logo.jpg, 2. Global Branding URL, 3. Initials Fallback.
+ */
+export const loadLogo = async (): Promise<string> => {
+    try {
+        // Try local asset first
+        const localLogo = '/images/logo.jpg';
+        const response = await fetch(localLogo);
+        if (response.ok) return await getBase64ImageFromUrl(localLogo);
+    } catch (e) {}
+    
+    // Fallback to official branding generator
+    return await getBase64ImageFromUrl(OFFICIAL_LOGO_URL);
 };
 
 export const addPdfHeader = async (doc: jsPDF, title: string, subTitle?: string): Promise<number> => {
-    // Header Background
+    // Header background bar for a professional look
     doc.setFillColor(250, 250, 250);
-    doc.rect(0, 0, 210, 45, 'F');
+    doc.rect(0, 0, 210, 48, 'F');
 
-    // Load Logo
+    // Branding Logo - consistently used in all PDF downloads
     try {
-        const logo = await loadLogo();
-        doc.addImage(logo, 'JPEG', 15, 8, 28, 28);
+        const logoData = await loadLogo();
+        // Check if it's SVG or raster
+        const format = logoData.includes('svg') ? 'SVG' : 'JPEG';
+        doc.addImage(logoData, format, 15, 8, 30, 30);
     } catch (e) {
-        console.warn("Logo could not be loaded for PDF");
+        // Final fallback: Draw a blue circle with text if image loading fails completely
+        doc.setDrawColor(30, 58, 138);
+        doc.setFillColor(30, 58, 138);
+        doc.circle(30, 23, 14, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(10);
+        doc.text("IMST", 30, 25, { align: "center" });
     }
 
-    // Add Security QR Code in the header corner (Verification Link)
-    const qrUrl = generateQrDataUrl(`${SCHOOL_NAME} | ${title} | ${new Date().toISOString()}`);
+    // Security & Verification QR Code (Integrated for all official documents)
+    const qrUrl = generateQrDataUrl(`${SCHOOL_NAME} | ${title} | Verified by IMST Portal`);
     try {
         const qrBase64 = await getBase64ImageFromUrl(qrUrl);
         doc.addImage(qrBase64, 'PNG', 175, 8, 20, 20);
         doc.setFontSize(6);
+        doc.setTextColor(100);
         doc.text("SECURE VERIFY", 185, 30, { align: "center" });
-    } catch (e) {
-        console.warn("QR Code failed to load");
-    }
+    } catch (e) {}
 
+    // Institution Name
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 58, 138); 
-    doc.setFontSize(16);
-    if (SCHOOL_NAME.length > 35) doc.setFontSize(14);
+    doc.setFontSize(18);
     doc.text(SCHOOL_NAME.toUpperCase(), 115, 18, { align: "center" });
 
+    // Address & Contact Information
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105); 
     doc.setFont("helvetica", "normal");
     doc.text(SCHOOL_ADDRESS, 115, 25, { align: "center" });
+    doc.text(`Phone: ${SCHOOL_PHONE} | Email: ${SCHOOL_EMAIL}`, 115, 30, { align: "center" });
 
-    doc.setFontSize(12);
+    // Document Type / Title
+    doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.text(title.toUpperCase(), 115, 35, { align: "center" });
+    doc.text(title.toUpperCase(), 115, 42, { align: "center" });
 
     if (subTitle) {
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(subTitle, 115, 41, { align: "center" });
+        doc.text(subTitle, 115, 48, { align: "center" });
     }
 
+    // Divider Line
     doc.setDrawColor(30, 58, 138);
-    doc.setLineWidth(0.5);
-    doc.line(15, 45, 195, 45);
+    doc.setLineWidth(0.8);
+    doc.line(15, 50, 195, 50);
 
-    return 55; 
+    return 65; 
 };
 
 export const generateAdmissionLetter = async (studentName: string, regNo: string, classLevel: string) => {
@@ -124,7 +146,7 @@ export const generateAdmissionLetter = async (studentName: string, regNo: string
         }
     });
     
-    y += 10;
+    y += 20;
     doc.setFont("helvetica", "bold");
     doc.text("__________________________", 15, y);
     y += 5;
@@ -134,9 +156,15 @@ export const generateAdmissionLetter = async (studentName: string, regNo: string
     try {
         const qrBase64 = await getBase64ImageFromUrl(qrUrl);
         doc.addImage(qrBase64, 'PNG', 160, 240, 30, 30);
+        doc.setTextColor(30, 58, 138);
         doc.setFontSize(7);
-        doc.text("SCAN TO VERIFY ADMISSION", 175, 275, { align: "center" });
+        doc.text("OFFICIAL ADMISSION SEAL", 175, 275, { align: "center" });
     } catch (e) {}
+
+    // Page Border for Authenticity
+    doc.setDrawColor(30, 58, 138);
+    doc.setLineWidth(0.5);
+    doc.rect(5, 5, 200, 287);
 
     doc.save(`Admission_Letter_${studentName.replace(/\s/g, '_')}.pdf`);
 };
@@ -154,13 +182,13 @@ export const generateReceipt = async (data: {
     const doc = new jsPDF();
     const yStart = await addPdfHeader(doc, data.receiptType, `Ref: ${data.reference}`);
     
-    // Watermark
+    // Background Watermark
     doc.setTextColor(245, 245, 245);
     doc.setFontSize(60);
     doc.setFont("helvetica", "bold");
     doc.text("OFFICIAL RECEIPT", 105, 150, { align: "center", angle: 45 });
     
-    // Content Box
+    // Detailed Content Box
     doc.setDrawColor(200);
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(15, yStart + 5, 180, 110, 3, 3, 'FD');
@@ -168,59 +196,17 @@ export const generateReceipt = async (data: {
     doc.setTextColor(0);
     doc.setFontSize(11);
     let y = yStart + 20;
-    const xLabel = 25;
-    const xValue = 85;
-    const lineHeight = 12;
-
     const addLine = (label: string, value: string) => {
         doc.setFont("helvetica", "bold");
-        doc.text(label, xLabel, y);
+        doc.text(label, 25, y);
         doc.setFont("helvetica", "normal");
-        doc.text(value || "N/A", xValue, y);
-        y += lineHeight;
+        doc.text(value || "N/A", 85, y);
+        y += 12;
         doc.setDrawColor(240);
-        doc.line(xLabel, y - 8, 185, y - 8);
+        doc.line(25, y - 8, 185, y - 8);
     };
 
     addLine("Transaction Date:", data.date);
     addLine("Payment Reference:", data.reference);
     addLine("Student Name:", data.studentName.toUpperCase());
     if (data.regNo) addLine("Registration No:", data.regNo);
-    if (data.session) addLine("Academic Session:", data.session);
-    if (data.term) addLine("Academic Term:", data.term);
-    
-    // Amount Highlight
-    y += 5;
-    doc.setFillColor(30, 58, 138);
-    doc.rect(xLabel - 5, y - 8, 170, 12, 'F');
-    doc.setTextColor(255);
-    doc.setFont("helvetica", "bold");
-    doc.text("TOTAL AMOUNT PAID:", xLabel, y);
-    doc.text(`NGN ${data.amount}`, 180, y, { align: "right" });
-    
-    // Footer Verification
-    y = yStart + 125;
-    doc.setTextColor(100);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "italic");
-    doc.text("This is a computer-generated receipt. No signature is required.", 105, y, { align: "center" });
-    doc.text(`For inquiries: ${SCHOOL_EMAIL} | ${SCHOOL_PHONE}`, 105, y + 5, { align: "center" });
-    
-    // Add Security QR at bottom right for authenticity verification
-    const footerQrUrl = generateQrDataUrl(`VERIFIED_PAYMENT: ${data.reference} | ${data.studentName} | Amount: ${data.amount} | IMST COLLEGE`);
-    try {
-        const qrBase64 = await getBase64ImageFromUrl(footerQrUrl);
-        doc.addImage(qrBase64, 'PNG', 160, 240, 30, 30);
-        doc.setTextColor(30, 58, 138);
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.text("SCAN TO VERIFY RECEIPT", 175, 275, { align: "center" });
-    } catch (e) {}
-
-    // Border
-    doc.setDrawColor(30, 58, 138);
-    doc.setLineWidth(1);
-    doc.rect(5, 5, 200, 287);
-
-    doc.save(`Receipt_${data.reference}.pdf`);
-};
