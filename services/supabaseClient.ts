@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration using your provided keys
-const SUPABASE_URL: string = 'https://ywlwzbaydhnkjdoxcvby.supabase.co';
-const SUPABASE_ANON_KEY: string = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3bHd6YmF5ZGhua2pkb3hjdmJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ2Mzc2NDIsImV4cCI6MjA4MDIxMzY0Mn0._zZyzTwdmdUZarxEzuc_S3VOHoUbktuWV9nUZwdT5C0';
+const SUPABASE_URL: string = 'https://mndbrtgdfunvdpuxirju.supabase.co';
+const SUPABASE_ANON_KEY: string = 'sb_publishable_h6GDZ79sdzU9mKpXc77E9w_bFXItdYe';
 
 export const isSupabaseConfigured = (): boolean => true; // Always true for this setup
 

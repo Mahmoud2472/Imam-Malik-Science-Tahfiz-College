@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { SCHOOL_NAME, SCHOOL_ADDRESS, SCHOOL_PHONE, SCHOOL_EMAIL } from '../constants';
 import { MapPin, Phone, Mail } from 'lucide-react';
 
@@ -15,9 +16,9 @@ const Footer: React.FC = () => {
         <div>
           <h3 className="text-white text-lg font-bold mb-4">Quick Links</h3>
           <ul className="space-y-2 text-sm">
-            <li><a href="#/admissions" className="hover:text-yellow-400">Admissions</a></li>
-            <li><a href="#/portal" className="hover:text-yellow-400">Student Portal</a></li>
-            <li><a href="#/fees" className="hover:text-yellow-400">Pay Fees</a></li>
+            <li><Link to="/admissions" className="hover:text-yellow-400 transition-colors">Admissions</Link></li>
+            <li><Link to="/portal" className="hover:text-yellow-400 transition-colors">Student Portal</Link></li>
+            <li><Link to="/fees" className="hover:text-yellow-400 transition-colors">Pay Fees</Link></li>
           </ul>
         </div>
         <div>

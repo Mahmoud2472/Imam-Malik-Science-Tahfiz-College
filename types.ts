@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export enum UserRole {
@@ -11,20 +12,17 @@ export interface Student {
   id: string;
   fullName: string;
   regNumber: string;
-  pin: string; // Added PIN for secure access
+  pin: string;
   classLevel: string;
   guardianPhone: string;
   feesPaid: boolean;
   photoUrl?: string;
   email?: string;
   applicationDate?: string;
-  // New fields
   dateOfBirth?: string;
   address?: string;
-  lastSchoolAttended?: string;
-  graduationYear?: string;
-  parentOccupation?: string;
-  status?: 'Admitted' | 'Pending' | 'Applicant';
+  // Added to fix "property 'status' does not exist" errors in constants.ts
+  status?: string;
 }
 
 export interface Teacher {
@@ -45,33 +43,41 @@ export interface SubjectResult {
 }
 
 export interface TermResult {
+  // Fields made optional or added to match mock data in constants.ts
+  id?: string;
+  studentId?: string;
+  studentName?: string;
+  regNumber?: string;
+  classLevel?: string;
   term: string;
-  year: string;
+  session?: string;
+  // Added to fix "property 'year' does not exist" error in constants.ts
+  year?: string;
   results: SubjectResult[];
-  teacherComment?: string;
-  aiAnalysis?: string;
-  // New Statistics
-  position?: string;
+  // Stats computed by the system
+  totalScore: number;
+  average: number;
+  position: string;
+  classPopulation?: number;
+  // Added to match properties used in mock data
   totalStudents?: number;
-  average?: number;
-  totalScore?: number;
   nextTermBegins?: string;
+  teacherComment?: string;
+  principalComment?: string;
+  dateGenerated?: string;
 }
 
 export interface ApplicationForm {
+  id: string;
   fullName: string;
-  dateOfBirth: string;
-  address: string;
-  lastSchoolAttended: string;
-  graduationYear: string;
-  parentOccupation: string;
-  applyingForClass: string;
-  parentPhone: string;
+  classApplied: string;
+  phone: string;
   email: string;
-  // Security & Tracking
-  userId?: string;
-  paymentReference?: string;
-  paymentStatus?: 'pending' | 'verified';
+  payment_reference: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  user_id: string;
+  photo_url?: string;
+  created_at: string;
 }
 
 export interface Post {
@@ -79,11 +85,4 @@ export interface Post {
   title: string;
   content: string;
   date: string;
-  author?: string;
-}
-
-export interface NavItem {
-  label: string;
-  path: string;
-  icon?: React.ReactNode;
 }

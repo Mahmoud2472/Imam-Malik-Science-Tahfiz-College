@@ -19,16 +19,16 @@ const Navbar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="bg-blue-900 text-white shadow-xl sticky top-0 z-50 ring-1 ring-white/10">
+    <nav className="bg-blue-900 text-white shadow-2xl sticky top-0 z-50 ring-1 ring-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-4 group">
-              <div className="h-12 w-12 bg-white rounded-xl p-0.5 overflow-hidden flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
+              <div className="h-14 w-14 bg-white rounded-xl p-0.5 overflow-hidden flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
                  <img 
-                    src="https://api.dicebear.com/7.x/initials/svg?seed=IMST&backgroundColor=1e3a8a&fontFamily=Inter&fontWeight=700" 
+                    src="https://res.cloudinary.com/dswuqqfuk/image/upload/logo.jpg_imoamc.jpg" 
                     alt="IMST Logo" 
-                    className="h-full w-full object-cover rounded-lg"
+                    className="h-full w-full object-contain rounded-lg"
                  />
               </div>
               <div className="flex flex-col">
@@ -83,9 +83,8 @@ const Navbar: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden bg-blue-950 border-t border-blue-800 animate-fadeIn">
+        <div className="md:hidden bg-blue-950 border-t border-blue-800">
           <div className="px-4 pt-4 pb-6 space-y-2">
             {navLinks.map((link) => (
               <Link
@@ -101,20 +100,12 @@ const Navbar: React.FC = () => {
                 {link.name}
               </Link>
             ))}
-            <div className="grid grid-cols-2 gap-3 pt-4">
-              <Link
-                  to="/staff"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center py-3 rounded-xl text-sm font-bold bg-blue-900 text-blue-200 border border-blue-800"
-                >
-                  <BookOpen size={18} className="mr-2" /> Staff
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-blue-800 mt-4">
+              <Link to="/staff" onClick={() => setIsOpen(false)} className="flex items-center justify-center py-3 bg-blue-900 rounded-xl text-sm font-bold text-blue-200 border border-blue-800">
+                <BookOpen size={18} className="mr-2" /> Staff
               </Link>
-              <Link
-                  to="/admin"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center py-3 rounded-xl text-sm font-bold bg-blue-900 text-blue-200 border border-blue-800"
-                >
-                  <Lock size={18} className="mr-2" /> Admin
+              <Link to="/admin" onClick={() => setIsOpen(false)} className="flex items-center justify-center py-3 bg-blue-900 rounded-xl text-sm font-bold text-blue-200 border border-blue-800">
+                <Lock size={18} className="mr-2" /> Admin
               </Link>
             </div>
           </div>

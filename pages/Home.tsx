@@ -7,16 +7,12 @@ import { driveService } from '../services/driveService';
 
 const HERO_IMAGES = [
   { 
-    url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1500&auto=format&fit=crop', 
+    url: 'https://res.cloudinary.com/dswuqqfuk/image/upload/v1768901132/student_hero.jpg_1_ayqjee.jpg', 
     title: 'Excellence in Science' 
   },
   { 
-    url: 'https://images.unsplash.com/photo-1584551270941-624242c71f8e?q=80&w=1500&auto=format&fit=crop', 
-    title: 'Spiritual Growth & Tahfiz' 
-  },
-  { 
-    url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1500&auto=format&fit=crop', 
-    title: 'Empowering Future Leaders' 
+    url: 'https://res.cloudinary.com/dswuqqfuk/image/upload/v1768901129/classroom.jpg_1_vbhj51.jpg', 
+    title: 'Modern Learning Environment' 
   }
 ];
 
@@ -26,11 +22,15 @@ const Home: React.FC = () => {
   const [currentHero, setCurrentHero] = useState(0);
 
   useEffect(() => {
+    // Non-blocking news fetch
     const fetchLatestNews = async () => {
       try {
         const data = await driveService.getTable('imst_posts');
-        if (data && data.length > 0) setPosts(data.slice(0, 3));
-        else setPosts(MOCK_POSTS.slice(0, 3));
+        if (data && data.length > 0) {
+          setPosts(data.slice(0, 3));
+        } else {
+          setPosts(MOCK_POSTS.slice(0, 3));
+        }
       } catch (err) {
         setPosts(MOCK_POSTS.slice(0, 3));
       } finally {
@@ -47,26 +47,27 @@ const Home: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Section Slideshow */}
+      {/* Hero Section Slideshow - Optimized for instant appearance */}
       <div className="relative bg-blue-950 text-white overflow-hidden h-[550px] sm:h-[700px]">
         {HERO_IMAGES.map((img, idx) => (
           <div 
             key={idx} 
-            className={`absolute inset-0 transition-all duration-[2000ms] ease-in-out ${idx === currentHero ? 'opacity-100 scale-105' : 'opacity-0 scale-100'}`}
+            className={`absolute inset-0 transition-all duration-[2000ms] ease-in-out ${idx === currentHero ? 'opacity-100' : 'opacity-0'}`}
           >
             <img 
               src={img.url} 
               alt={img.title} 
               className="w-full h-full object-cover"
+              loading={idx === 0 ? "eager" : "lazy"}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-blue-950/60 via-blue-900/40 to-blue-950/90"></div>
           </div>
         ))}
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center text-center z-10">
-          <div className="mb-6 mx-auto w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-full p-1 border-4 border-yellow-400 shadow-2xl animate-pulse">
+          <div className="mb-6 mx-auto w-24 h-24 sm:w-32 sm:h-32 bg-white rounded-full p-1 border-4 border-yellow-400 shadow-2xl overflow-hidden">
               <img 
-                src="https://api.dicebear.com/7.x/initials/svg?seed=IMST&backgroundColor=1e3a8a&fontFamily=Inter&fontWeight=700" 
+                src="https://res.cloudinary.com/dswuqqfuk/image/upload/logo.jpg_imoamc.jpg" 
                 alt="Badge" 
                 className="w-full h-full rounded-full object-contain" 
               />
@@ -92,17 +93,6 @@ const Home: React.FC = () => {
             </Link>
           </div>
         </div>
-
-        {/* Slideshow Progress Indicators */}
-        <div className="absolute bottom-10 left-0 right-0 flex justify-center space-x-3 z-20">
-          {HERO_IMAGES.map((_, idx) => (
-            <button 
-              key={idx} 
-              onClick={() => setCurrentHero(idx)}
-              className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentHero ? 'bg-yellow-400 w-12' : 'bg-white/30 w-4 hover:bg-white/50'}`}
-            />
-          ))}
-        </div>
       </div>
 
       {/* Latest News Section */}
@@ -116,27 +106,22 @@ const Home: React.FC = () => {
               </h2>
               <p className="text-slate-500 mt-2">Stay informed about our community and academic calendar.</p>
             </div>
-            <Link to="/gallery" className="text-blue-600 font-bold hover:underline flex items-center">
-              School Gallery <ArrowRight className="h-4 w-4 ml-1" />
-            </Link>
           </div>
 
-          {loadingPosts ? (
-            <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600 h-10 w-10" /></div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {posts.map((post) => (
-                <div key={post.id} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all duration-300 h-full flex flex-col group">
-                  <span className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4 bg-blue-50 px-3 py-1 rounded-full w-fit">{post.date}</span>
-                  <h3 className="text-xl font-bold text-slate-800 mb-4 line-clamp-2 group-hover:text-blue-700 transition-colors">{post.title}</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed line-clamp-4 mb-6 flex-grow">{post.content}</p>
-                  <button className="text-blue-600 text-sm font-bold hover:text-blue-800 flex items-center mt-auto border-t pt-4">
-                    Read Full Article <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {posts.length > 0 ? posts.map((post) => (
+              <div key={post.id} className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl transition-all duration-300 h-full flex flex-col group">
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4 bg-blue-50 px-3 py-1 rounded-full w-fit">{post.date}</span>
+                <h3 className="text-xl font-bold text-slate-800 mb-4 line-clamp-2 group-hover:text-blue-700 transition-colors">{post.title}</h3>
+                <p className="text-slate-600 text-sm leading-relaxed line-clamp-4 mb-6 flex-grow">{post.content}</p>
+                <button className="text-blue-600 text-sm font-bold hover:text-blue-800 flex items-center mt-auto border-t pt-4">
+                  Read Full Article <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            )) : (
+              <div className="col-span-full flex justify-center py-20"><Loader2 className="animate-spin text-blue-600 h-10 w-10" /></div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -145,7 +130,6 @@ const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="relative">
-              <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-100 rounded-full blur-3xl opacity-50"></div>
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                 <img 
                   src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=1000&auto=format&fit=crop" 
@@ -157,13 +141,13 @@ const Home: React.FC = () => {
             <div>
               <h2 className="text-4xl font-bold text-slate-900 mb-6">Our Mission & Values</h2>
               <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-                At {SCHOOL_NAME}, we are committed to providing a conducive learning environment that nurtures both the intellect and the soul. Our curriculum is designed to prepare students for the complexities of the modern world while keeping them firmly rooted in Islamic values and Quranic wisdom.
+                At {SCHOOL_NAME}, we are committed to providing a conducive learning environment that nurtures both the intellect and the soul.
               </p>
               <div className="space-y-6">
                 {[
-                  { icon: BookOpen, title: 'Integrated Curriculum', desc: 'Merging Nigerian Education Research and Development Council (NERDC) standards with deep Tahfiz modules.' },
-                  { icon: Users, title: 'Mentorship Program', desc: 'Personalized guidance from teachers who act as moral role models for every student.' },
-                  { icon: Star, title: 'Modern Labs', desc: 'Fully equipped science and ICT laboratories to foster innovation and hands-on discovery.' }
+                  { icon: BookOpen, title: 'Integrated Curriculum', desc: 'Merging Nigerian standards with deep Tahfiz modules.' },
+                  { icon: Users, title: 'Mentorship Program', desc: 'Personalized guidance from moral role models.' },
+                  { icon: Star, title: 'Modern Labs', desc: 'Fully equipped science and ICT laboratories.' }
                 ].map((item, i) => (
                   <div key={i} className="flex items-start">
                     <div className="bg-blue-50 p-3 rounded-xl text-blue-600 mr-4">

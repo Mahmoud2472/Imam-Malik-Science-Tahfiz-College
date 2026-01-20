@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, CreditCard, CheckCircle, Upload, Loader2, User, School, Briefcase, Lock, LogIn, LogOut, ShieldCheck, Save, ExternalLink, Key, Camera, MapPin, Phone, Mail, Calendar, X, AlertCircle, FileText, FileBadge } from 'lucide-react';
-import { PAYSTACK_APP_FEE_LINK, SCHOOL_NAME, SCHOOL_ADDRESS, APPLICATION_FEE_AMOUNT } from '../constants';
+import { Download, CreditCard, CheckCircle, Upload, Loader2, User, School, ShieldCheck, ExternalLink, Camera, Phone, Mail, AlertCircle, FileText, FileBadge, Info, BookOpen, Fingerprint, Clock, CheckCircle2, ArrowRight, Calendar } from 'lucide-react';
+import { PAYSTACK_APP_FEE_LINK, SCHOOL_NAME, APPLICATION_FEE_AMOUNT } from '../constants';
 import { driveService } from '../services/driveService';
 import { jsPDF } from "jspdf";
 import { useLocation } from 'react-router-dom';
-import { addPdfHeader, generateReceipt, generateAdmissionLetter } from '../utils/pdfUtils';
+import { addPdfHeader, generateAdmissionLetter } from '../utils/pdfUtils';
+import { ApplicationForm } from '../types';
 
-type AdmissionStep = 'auth' | 'form' | 'success';
+type AdmissionStep = 'auth' | 'payment_confirmed' | 'form' | 'status' | 'success';
 
 const Admissions: React.FC = () => {
   const [step, setStep] = useState<AdmissionStep>('auth');
   const [user, setUser] = useState<any>(null);
   const location = useLocation();
-  const [isLogin, setIsLogin] = useState(true);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -20,31 +20,46 @@ const Admissions: React.FC = () => {
   const [authError, setAuthError] = useState('');
   const [paymentRef, setPaymentRef] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [currentApp, setCurrentApp] = useState<ApplicationForm | null>(null);
   const [formData, setFormData] = useState({ fullName: '', gender: '', dateOfBirth: '', lastSchoolAttended: '', islamiyyaSchool: '', graduationYear: '', classApplied: '', parentName: '', phone: '', email: '', address: '' });
 
-  const checkExistingPayment = useCallback(async (userId: string) => {
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reference = params.get('reference') || params.get('trxref');
+    const directAccess = params.get('payment') === 'completed';
+    
+    if (reference || directAccess) {
+      const finalRef = reference || `PAID-AUTO-${Date.now().toString().slice(-4)}`;
+      setPaymentRef(finalRef);
+      sessionStorage.setItem('pending_payment_ref', finalRef);
+      const session = localStorage.getItem('imst_session');
+      
+      if (session) {
+        setStep('payment_confirmed');
+      }
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    }
+  }, [location]);
+
+  const checkExistingApplication = useCallback(async (userId: string) => {
     try {
       const data = await driveService.getTable('imst_applications');
       const found = data.find((d: any) => d.user_id === userId);
-      if (found && found.payment_reference) {
-        setPaymentRef(found.payment_reference);
+      if (found) {
+        setCurrentApp(found);
         setFormData(prev => ({ ...prev, ...found }));
+        if (found.payment_reference) setPaymentRef(found.payment_reference);
         if (found.photo_url) setPhotoPreview(found.photo_url);
-        if (found.status === 'Admitted') setStep('success');
+        
+        if (found.status === 'Approved') setStep('success');
+        else if (found.status === 'Pending') setStep('status');
         else setStep('form');
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error("Error checking application:", err);
+    }
   }, []);
-
-  const savePaymentReference = async (userId: string, ref: string) => {
-    try {
-      await driveService.upsert('imst_applications', {
-        user_id: userId,
-        payment_reference: ref,
-        status: 'Applicant'
-      }, 'user_id');
-    } catch (e) {}
-  };
 
   useEffect(() => {
     const session = localStorage.getItem('imst_session');
@@ -52,143 +67,216 @@ const Admissions: React.FC = () => {
       const userData = JSON.parse(session);
       setUser(userData);
       setFormData(prev => ({ ...prev, email: userData.email || '' }));
-      checkExistingPayment(userData.id);
-      setStep('form');
+      
+      const storedRef = sessionStorage.getItem('pending_payment_ref');
+      if (storedRef && step === 'auth') {
+        setPaymentRef(storedRef);
+        setStep('payment_confirmed');
+      } else if (!storedRef) {
+        checkExistingApplication(userData.id);
+      }
     }
-  }, [checkExistingPayment]);
+  }, [checkExistingApplication, step]);
 
-  useEffect(() => { 
-    const params = new URLSearchParams(location.search); 
-    const reference = params.get('reference') || params.get('trxref'); 
-    if (reference) { 
-      setPaymentRef(reference); 
-      if (user) savePaymentReference(user.id, reference);
-      setStep('form'); 
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash); 
-    } 
-  }, [location, user]);
-
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
-    if (e.target.files && e.target.files[0]) { 
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(e.target.files[0]);
-    } 
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    setAuthLoading(true); 
+  const handleAuth = async (e?: React.FormEvent, customEmail?: string, customPass?: string) => {
+    if (e) e.preventDefault();
+    setAuthLoading(true);
     setAuthError('');
-    const { user, error } = await driveService.signIn(authEmail, authPassword);
-    if (error) setAuthError(error);
-    else {
-      setUser(user);
-      localStorage.setItem('imst_session', JSON.stringify(user));
-      setFormData(prev => ({ ...prev, email: authEmail }));
-      checkExistingPayment(user.id);
-      setStep('form');
+    const emailToUse = customEmail || authEmail;
+    const passToUse = customPass || authPassword;
+
+    const { user: authUser, error } = await driveService.signIn(emailToUse, passToUse);
+    if (error) {
+      setAuthError(error);
+    } else {
+      setUser(authUser);
+      localStorage.setItem('imst_session', JSON.stringify(authUser));
+      setFormData(prev => ({ ...prev, email: emailToUse }));
+      
+      const storedRef = sessionStorage.getItem('pending_payment_ref');
+      if (storedRef) {
+        setPaymentRef(storedRef);
+        setStep('payment_confirmed');
+      } else {
+        await checkExistingApplication(authUser.id);
+        if (step === 'auth') setStep('form');
+      }
     }
     setAuthLoading(false);
   };
 
   const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!paymentRef) return alert("Payment required.");
+    if (!paymentRef) return alert("Please complete the payment first.");
     setSubmitLoading(true);
     try {
-      await driveService.upsert('imst_applications', {
+      const payload = {
         ...formData,
         user_id: user.id,
         payment_reference: paymentRef,
-        status: 'Admitted', // Fast-track for demo
-        photo_url: photoPreview
-      }, 'user_id');
-      setStep('success');
-    } catch (err) {} finally { setSubmitLoading(false); }
-  };
-
-  const handleDownloadForm = async () => {
-    const doc = new jsPDF();
-    const yStart = await addPdfHeader(doc, "ADMISSION APPLICATION FORM", `Ref: ${paymentRef}`);
-    if (photoPreview) { try { doc.addImage(photoPreview, 'JPEG', 160, yStart - 15, 30, 30); } catch (e) { doc.rect(160, yStart - 15, 30, 30); } }
-    let y = yStart + 25;
-    const addField = (l: string, v: string) => { doc.setFont("helvetica", "bold"); doc.text(l+":", 20, y); doc.setFont("helvetica", "normal"); doc.text(v||"N/A", 70, y); y+=10; };
-    addField("Name", formData.fullName); addField("Class", formData.classApplied); addField("Phone", formData.phone);
-    doc.save(`IMST_Application_${formData.fullName.replace(/\s/g, '_')}.pdf`);
-  };
-
-  const handleDownloadAdmissionLetter = () => {
-    generateAdmissionLetter(formData.fullName, 'IMST/TEMP/' + Math.floor(Math.random()*1000), formData.classApplied);
+        status: 'Pending',
+        photo_url: photoPreview,
+        created_at: new Date().toISOString()
+      };
+      await driveService.upsert('imst_applications', payload, 'user_id');
+      sessionStorage.removeItem('pending_payment_ref');
+      setStep('status');
+    } catch (err) {
+      alert("Submission failed.");
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-slate-900">Admission Portal</h1>
-        <div className="flex justify-center mt-8 gap-4 items-center">
-            {[1,2,3].map(i => (
-                <React.Fragment key={i}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${step === (i===1?'auth':i===2?'form':'success') ? 'bg-blue-600 text-white scale-110' : 'bg-slate-200 text-slate-600'}`}>{i}</div>
-                    {i<3 && <div className="w-10 h-1 bg-slate-200"></div>}
-                </React.Fragment>
-            ))}
-        </div>
-      </div>
-      
-      {step === 'auth' && (
-        <div className="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-100">
-          <form onSubmit={handleAuth} className="space-y-4">
-            <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-4 py-2 border rounded-md" placeholder="Email" />
-            <input type="password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-4 py-2 border rounded-md" placeholder="Password" />
-            <button type="submit" disabled={authLoading} className="w-full bg-blue-900 text-white py-3 rounded-md font-bold hover:bg-blue-800">{authLoading ? <Loader2 className="animate-spin mx-auto" /> : 'Login & Apply'}</button>
-          </form>
-          <button onClick={() => { setAuthEmail('applicant@school.com'); setAuthPassword('applicant'); }} className="mt-4 w-full py-2 border border-slate-200 rounded text-slate-500 text-sm">Demo Login</button>
-        </div>
-      )}
-      
-      {step === 'form' && (
-        <div className="bg-white rounded-xl shadow-lg p-8 border border-slate-100 animate-fadeIn">
-          {!paymentRef ? (
-              <div className="bg-yellow-50 p-6 rounded-lg border border-yellow-200 text-center mb-8">
-                  <h3 className="font-bold text-yellow-800 mb-2">Application Fee Required</h3>
-                  <p className="text-sm text-yellow-700 mb-6">Pay ₦{APPLICATION_FEE_AMOUNT.toLocaleString()} to access the form.</p>
-                  <button onClick={() => window.open(PAYSTACK_APP_FEE_LINK, '_blank')} className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold">Pay Now</button>
-              </div>
-          ) : (
-              <form onSubmit={handleSubmitApplication} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2 flex flex-col items-center">
-                        <div className="w-32 h-32 bg-slate-50 border rounded-full overflow-hidden mb-2 relative">
-                            {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <Camera className="h-10 w-10 mx-auto mt-10 opacity-20" />}
-                            <input type="file" onChange={handlePhotoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
-                        </div>
-                        <span className="text-[10px] text-slate-400 uppercase font-bold">Upload Passport</span>
-                    </div>
-                    <input placeholder="Full Name" required className="p-3 border rounded-lg" value={formData.fullName} onChange={e=>setFormData({...formData, fullName:e.target.value})} />
-                    <select required className="p-3 border rounded-lg bg-white" value={formData.classApplied} onChange={e=>setFormData({...formData, classApplied:e.target.value})}>
-                        <option value="">Select Class</option><option>JSS 1</option><option>SSS 1</option>
-                    </select>
-                    <input placeholder="Phone" className="p-3 border rounded-lg" value={formData.phone} onChange={e=>setFormData({...formData, phone:e.target.value})} />
-                    <input placeholder="Address" className="p-3 border rounded-lg" value={formData.address} onChange={e=>setFormData({...formData, address:e.target.value})} />
+    <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2">
+          <div className="text-center lg:text-left mb-10">
+            <h1 className="text-4xl font-black text-slate-900 mb-2 tracking-tight">Admissions Portal</h1>
+            <p className="text-slate-500 font-medium">Join the legacy of Science and Tahfiz excellence.</p>
+          </div>
+
+          {step === 'auth' && (
+            <div className="space-y-6 animate-fadeIn">
+              <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100">
+                <div className="flex items-center mb-8 space-x-4 text-blue-900">
+                  <div className="p-3 bg-blue-50 rounded-2xl"><ShieldCheck size={32} /></div>
+                  <h2 className="text-2xl font-black">Login to Apply</h2>
                 </div>
-                <button type="submit" disabled={submitLoading} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">Submit Application</button>
-              </form>
+                <form onSubmit={(e) => handleAuth(e)} className="space-y-5">
+                  <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-medium" placeholder="Email Address" />
+                  <input type="password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl outline-none font-medium" placeholder="Password" />
+                  {authError && <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl flex items-center"><AlertCircle size={18} className="mr-3"/> {authError}</div>}
+                  <button type="submit" disabled={authLoading} className="w-full bg-blue-900 text-white py-5 rounded-2xl font-black text-lg hover:bg-blue-800 transition-all shadow-xl">
+                    {authLoading ? <Loader2 className="animate-spin" /> : 'Sign In'}
+                  </button>
+                </form>
+                <button onClick={() => handleAuth(undefined, 'applicant@school.com', 'applicant')} className="mt-4 w-full py-3 text-blue-600 font-bold border-2 border-dashed border-blue-100 rounded-xl hover:bg-blue-50 transition-colors">Demo Login</button>
+              </div>
+            </div>
+          )}
+
+          {step === 'payment_confirmed' && (
+            <div className="bg-white rounded-[3rem] shadow-2xl p-10 border border-slate-100 animate-scaleIn text-center">
+              <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+                <CheckCircle size={48} />
+              </div>
+              <h2 className="text-3xl font-black text-slate-900 mb-4">Payment Successful!</h2>
+              <p className="text-slate-500 font-medium mb-10 max-w-sm mx-auto">We have received your application fee. You can now proceed to complete your registration form.</p>
+              
+              <div className="bg-slate-50 rounded-[2rem] p-8 mb-10 border border-slate-100 text-left space-y-4">
+                 <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction Ref</span>
+                    <span className="font-mono text-xs font-bold text-blue-600">{paymentRef}</span>
+                 </div>
+                 <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount Paid</span>
+                    <span className="font-black text-slate-900">₦{APPLICATION_FEE_AMOUNT.toLocaleString()}</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Applicant Email</span>
+                    <span className="font-bold text-slate-600">{user?.email}</span>
+                 </div>
+              </div>
+
+              <button 
+                onClick={() => setStep('form')}
+                className="w-full bg-blue-900 text-white py-5 rounded-[2rem] font-black text-xl shadow-2xl hover:bg-blue-800 transition-all active:scale-95 flex items-center justify-center"
+              >
+                Complete Application Form <ArrowRight className="ml-3" />
+              </button>
+            </div>
+          )}
+
+          {step === 'form' && (
+            <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100 animate-fadeIn">
+              {!paymentRef ? (
+                <div className="text-center py-10">
+                   <div className="bg-blue-900 p-12 rounded-[3rem] text-white shadow-2xl">
+                      <CreditCard size={48} className="mx-auto mb-6 text-yellow-400" />
+                      <h3 className="text-3xl font-black mb-4">Application Fee: ₦{APPLICATION_FEE_AMOUNT.toLocaleString()}</h3>
+                      <p className="mb-10 text-blue-100 opacity-80">Payment is required to unhide the digital application form.</p>
+                      <a href={PAYSTACK_APP_FEE_LINK} className="inline-flex items-center px-10 py-5 bg-yellow-400 text-blue-900 font-black text-xl rounded-full hover:bg-yellow-300 transition-all shadow-2xl">Pay & Proceed</a>
+                   </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitApplication} className="space-y-8 animate-fadeIn">
+                  <div className="p-4 bg-green-50 border-2 border-green-100 rounded-2xl flex items-center text-green-700 font-bold">
+                    <CheckCircle size={20} className="mr-3"/> Payment Verified: {paymentRef}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="md:col-span-2 flex justify-center">
+                       <div className="w-40 h-40 bg-slate-50 border-4 border-dashed border-slate-200 rounded-[2.5rem] overflow-hidden cursor-pointer flex flex-col items-center justify-center relative">
+                         {photoPreview ? <img src={photoPreview} className="w-full h-full object-cover" /> : <Camera size={40} className="text-slate-300"/>}
+                         <input type="file" accept="image/*" onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setPhotoPreview(reader.result as string);
+                              reader.readAsDataURL(e.target.files[0]);
+                            }
+                          }} className="absolute inset-0 opacity-0 cursor-pointer" />
+                       </div>
+                    </div>
+                    <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} placeholder="Full Name (Surname First)" />
+                    <select required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.classApplied} onChange={e => setFormData({ ...formData, classApplied: e.target.value })}>
+                       <option value="">Applying for Class...</option>
+                       <option>JSS 1</option><option>JSS 2</option><option>SSS 1</option>
+                    </select>
+                    <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="Parent Phone Number" />
+                    <input required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Home Address" />
+                  </div>
+                  <button type="submit" disabled={submitLoading} className="w-full bg-blue-900 text-white py-6 rounded-[2rem] font-black text-2xl shadow-xl hover:bg-blue-800 transition-all">
+                    {submitLoading ? <Loader2 className="animate-spin" /> : 'Submit Application'}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {step === 'status' && (
+            <div className="bg-white rounded-[3rem] shadow-2xl p-16 text-center animate-fadeIn border border-slate-100">
+              <Clock size={80} className="mx-auto mb-8 text-orange-400" />
+              <h2 className="text-3xl font-black mb-4">Application Processing</h2>
+              <p className="text-slate-500 max-w-sm mx-auto mb-10 font-medium text-lg leading-relaxed">
+                Thank you, {formData.fullName}. Your application is currently under review by the Registrar.
+              </p>
+              <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 inline-block">
+                <p className="text-orange-700 font-black text-sm uppercase tracking-widest">Status: PENDING REVIEW</p>
+              </div>
+              <p className="mt-10 text-slate-400 text-sm italic">Please check back in 24-48 hours for your admission letter.</p>
+            </div>
+          )}
+
+          {step === 'success' && (
+            <div className="bg-white rounded-[3rem] shadow-2xl p-16 text-center animate-fadeIn border border-slate-100">
+              <CheckCircle2 size={80} className="mx-auto mb-8 text-green-500" />
+              <h2 className="text-4xl font-black mb-6">Congratulations!</h2>
+              <p className="text-slate-500 mb-12 text-lg font-medium">Your admission has been approved. You are now a student of {SCHOOL_NAME}.</p>
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                <button 
+                  onClick={() => generateAdmissionLetter(formData.fullName, 'IMST/OFFICIAL/' + Date.now().toString().slice(-4), formData.classApplied)} 
+                  className="bg-blue-900 text-white px-10 py-5 rounded-3xl font-black text-lg flex items-center justify-center shadow-xl hover:scale-105 transition-transform"
+                >
+                  <FileBadge className="mr-3" /> Download Admission Letter
+                </button>
+              </div>
+            </div>
           )}
         </div>
-      )}
 
-      {step === 'success' && (
-        <div className="bg-white rounded-xl shadow-lg p-12 text-center animate-fadeIn">
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-6" />
-          <h2 className="text-2xl font-bold mb-4">Successful!</h2>
-          <p className="text-slate-600 mb-8">Your admission has been processed.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button onClick={handleDownloadAdmissionLetter} className="flex items-center justify-center p-4 bg-blue-900 text-white rounded-xl font-bold"><FileBadge className="mr-2" /> Admission Letter</button>
-            <button onClick={handleDownloadForm} className="flex items-center justify-center p-4 bg-slate-100 text-slate-700 rounded-xl font-bold border"><Download className="mr-2" /> Application Copy</button>
-          </div>
+        <div className="space-y-8">
+           <div className="bg-slate-900 text-white p-10 rounded-[2.5rem] shadow-2xl">
+              <h3 className="text-2xl font-black mb-6 flex items-center"><Info className="mr-3 text-blue-400"/> Requirements</h3>
+              <ul className="space-y-4 text-slate-400 font-medium">
+                 <li className="flex items-center"><CheckCircle size={16} className="mr-2 text-green-500" /> Valid Passport Photo</li>
+                 <li className="flex items-center"><CheckCircle size={16} className="mr-2 text-green-500" /> Last School Report</li>
+                 <li className="flex items-center"><CheckCircle size={16} className="mr-2 text-green-500" /> Birth Certificate Copy</li>
+                 <li className="flex items-center"><CheckCircle size={16} className="mr-2 text-green-500" /> Application Fee Slip</li>
+              </ul>
+           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
